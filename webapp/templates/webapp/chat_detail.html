@@ -1,0 +1,188 @@
+{% extends 'webapp/base.html' %}
+{% block title %}SMS Marketing - Conversation{% endblock title %}
+{% block content %}
+
+<div class="h-screen w-full flex flex-col bg-white">
+    {% include 'webapp/fragments/message.html' %}
+    <!-- Chat Header -->
+    <div class="flex items-center px-6 py-4 border-b border-gray-200 bg-white">
+        <a href="{% url 'app_webapp:conversations' %}" class="mr-4 text-gray-400 hover:text-gray-600 p-1">
+            <i class="fas fa-arrow-left text-xl"></i>
+        </a>
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center">
+                <h2 class="text-xl font-medium text-gray-900">{{ contact.phone_number }}</h2>
+                <span class="mx-2 text-gray-400">•</span>
+                <span class="text-gray-600">{{ contact.full_name }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div class="flex-1 overflow-y-auto bg-gray-50 px-4 py-4">
+        <div class="max-w-4xl mx-auto space-y-4" id="messagesContainer">
+            {% if messages %}
+                {% regroup messages by created_at|date:"Y-m-d" as message_groups %}
+                {% for group in message_groups %}
+                    <div class="flex justify-center my-3">
+                        <div class="bg-gray-200 rounded-full px-4 py-1 text-xs text-gray-600">
+                            {{ group.grouper }}
+                        </div>
+                    </div>
+                    {% for message in group.list %}
+                        <div class="flex {% if message.is_outbound %}justify-end{% else %}justify-start{% endif %}">
+                            <div class="max-w-[80%] relative {% if message.is_outbound %}{% if message.status == 'FAILED' %}bg-red-500{% else %}bg-indigo-600{% endif %} text-white{% else %}bg-white text-gray-900{% endif %} 
+                                        rounded-xl px-4 py-2 shadow-sm">
+                                <p class="text-base whitespace-pre-wrap">{{ message.message }}</p>
+                                <div class="flex items-center justify-between mt-1">
+                                    <span class="{% if message.is_outbound %}text-indigo-100{% else %}text-gray-500{% endif %} text-xs">
+                                        {{ message.created_at|date:"g:i A" }}
+                                    </span>
+                                    {% if message.is_outbound %}
+                                        <span class="text-xs ml-2">
+                                            {% if message.status == 'FAILED' %}
+                                                <span class="text-white flex items-center">
+                                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                                    Failed to send
+                                                </span>
+                                            {% elif message.status == 'DELIVERED' %}
+                                                <i class="fas fa-check-double"></i>
+                                            {% endif %}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            {% else %}
+                <div class="text-center text-gray-500 py-8">
+                    No messages yet. Start the conversation!
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Message Input -->
+    <div class="border-t border-gray-200 bg-white px-4 py-4">
+        <div class="max-w-4xl mx-auto">
+            <form method="POST" class="flex items-end space-x-3" id="messageForm" action="{% url 'app_webapp:conversation_detail' contact.id %}">
+                {% csrf_token %}
+                <div class="flex-1 relative">
+                    <textarea 
+                        name="message"
+                        rows="1"
+                        class="w-full resize-none border border-gray-300 rounded-lg px-4 py-3 text-base
+                               focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[44px] pr-12"
+                        placeholder="Type a message..."
+                    ></textarea>
+                    <!-- Character counter -->
+                    <div class="absolute bottom-2 right-2 text-xs text-gray-400">
+                        <span id="charCount">0</span>/160
+                    </div>
+                </div>
+                <button 
+                    type="submit"
+                    class="bg-indigo-600 text-white rounded-full w-11 h-11 flex items-center justify-center
+                           hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    disabled
+                    id="sendButton"
+                >
+                    <i class="fas fa-paper-plane text-base"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block script %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const messageForm = document.getElementById('messageForm');
+        const messageInput = document.querySelector('textarea[name="message"]');
+        const charCount = document.getElementById('charCount');
+        const sendButton = document.getElementById('sendButton');
+        const messagesContainer = document.querySelector('.flex-1.overflow-y-auto');
+
+        // Function to scroll to bottom
+        function scrollToLatestMessage() {
+            // Get the parent container with overflow
+            const container = document.querySelector('.flex-1.overflow-y-auto');
+            if (container) {
+                container.scrollTo({
+                    top: container.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+        // Scroll on initial load
+        scrollToLatestMessage();
+
+        // Scroll after images and content are fully loaded
+        window.addEventListener('load', scrollToLatestMessage);
+
+        // Auto-resize textarea and update character count
+        function updateTextarea() {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+            
+            const length = messageInput.value.length;
+            charCount.textContent = length;
+            
+            sendButton.disabled = length === 0 || length > 160;
+            sendButton.classList.toggle('opacity-50', sendButton.disabled);
+        }
+
+        messageInput.addEventListener('input', updateTextarea);
+
+        // Handle message form submission
+        messageForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (messageInput.value.trim() && !sendButton.disabled) {
+                const formData = new FormData(this);
+                fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                }).then(response => response.json()).then(data => {
+                    if (data.success) {
+                        messageInput.value = '';
+                        messageInput.style.height = 'auto';
+                        // Scroll to bottom after sending
+                    }
+                    showSuccessMessage(data.message || 'Message Delivered Successfully!')
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 1000);
+                });
+            }
+        });
+
+        // Handle enter key for form submission
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey && !sendButton.disabled) {
+                e.preventDefault();
+                messageForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        // Create an observer for dynamic content changes
+        const observer = new MutationObserver(() => {
+            scrollToLatestMessage();
+        });
+
+        // Start observing the messages container for changes
+        if (messagesContainer) {
+            observer.observe(messagesContainer, {
+                childList: true,
+                subtree: true
+            });
+        }
+    });
+</script>
+{% endblock script %}

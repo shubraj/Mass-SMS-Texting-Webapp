@@ -1,0 +1,42 @@
+<!-- messages_list.html -->
+{% extends "webapp/base.html" %}
+{% load nav_tags %}
+{% block title %}SMS Marketing - Messages{% endblock title %}
+{% block content %}
+{% include 'webapp/fragments/overlay.html' %}
+{% main_navigation %}
+
+<main class="min-h-screen ml-0 md:ml-72" style="padding-top: 1rem;">
+    <!-- Messages List -->
+    <div class="bg-white h-[calc(100vh-3.5rem)]">
+        <!-- Messages Header with Search -->
+        <div class="border-b border-gray-200">
+            <div class="px-6 py-3">
+                <h1 class="text-2xl font-medium text-gray-900">Recent Messages</h1>
+            </div>
+            <div class="px-6 pb-3">
+                <form method="GET" class="relative">
+                    <input 
+                        type="text"
+                        name="search"
+                        placeholder="Search contacts by name, email, or phone..."
+                        class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg
+                               focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                               text-base"
+                        value="{{ request.GET.search|default:'' }}"
+                    >
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400"></i>
+                    </div>
+                    <button type="submit" class="hidden">Search</button>
+                </form>
+            </div>
+        </div>
+
+         <!-- Messages List -->
+         <div class="divide-y divide-gray-200 overflow-y-auto h-[calc(100%-8.5rem)]" id="messagesList">
+            {% include 'webapp/fragments/message_list.html' %}
+        </div>
+    </div>
+</main>
+{% endblock content %}

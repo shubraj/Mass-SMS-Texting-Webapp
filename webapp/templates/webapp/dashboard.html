@@ -1,0 +1,312 @@
+{% extends 'webapp/base.html' %}
+{% load nav_tags %}
+{% load number_filters %}
+{% block content %}
+{% include 'webapp/fragments/overlay.html' %}
+{% main_navigation %}
+<main class="ml-0 md:ml-72 min-h-screen">
+    {% include 'webapp/fragments/message.html' %}
+    <!-- Dashboard Content -->
+    <div class="p-6 space-y-6">
+        <!-- Welcome Banner -->
+        <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-6 text-white">
+            <h2 class="text-2xl font-bold mb-2">Welcome back, {{ user.username | default:user.email }}! 👋</h2>
+            <p class="opacity-90">Have a wonderful day ahead!</p>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Enhanced stat cards with better visual hierarchy -->
+            <div class="stat-card bg-white rounded-xl p-6 border border-gray-200">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Messages Sent</p>
+                        <div class="mt-2 flex items-baseline">
+                            <h3 class="text-2xl font-bold text-gray-900">{{total_messages_sent|add_commas}}</h3>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-paper-plane text-indigo-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card bg-white rounded-xl p-6 border border-gray-200">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Delivery Rate</p>
+                        <div class="mt-2 flex items-baseline">
+                            <h3 class="text-2xl font-bold text-gray-900">{{overall_delivery_rate}}%</h3>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-check text-green-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card bg-white rounded-xl p-6 border border-gray-200">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Active Campaigns</p>
+                        <div class="mt-2 flex items-baseline">
+                            <h3 class="text-2xl font-bold text-gray-900">{{total_campaigns}}</h3>
+                            <span class="ml-2 text-sm text-blue-500">Active</span>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-bullhorn text-blue-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-card bg-white rounded-xl p-6 border border-gray-200">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Total Contacts</p>
+                        <div class="mt-2 flex items-baseline">
+                            <h3 class="text-2xl font-bold text-gray-900">{{total_contacts|add_commas}}</h3>
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-users text-purple-600"></i>
+                    </div>
+                </div>
+                <div class="mt-4 flex items-center text-sm">
+                    <span class="text-gray-500">Active:</span>
+                    <span class="ml-1 text-gray-900 font-medium">{{active_contacts|add_commas}}</span>
+                    <span class="mx-2 text-gray-300">|</span>
+                    <span class="text-gray-500">Inactive:</span>
+                    <span class="ml-1 text-gray-900 font-medium">{{inactive_contacts|add_commas}}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions and Message Composer -->
+        <div class="bg-white rounded-xl border border-gray-200">
+            <div class="p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Quick Message</h2>
+                <form id="quickMessageForm" method="POST" action="{% url 'app_webapp:dashboard' %}">
+                    {% csrf_token %}
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Recipient Group
+                            </label>
+                            <select name="group" class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500" required>
+                                <option value="all">All Contacts</option>
+                                {% for group in groups %}
+                                <option value="{{ group.id }}">{{ group.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Message
+                            </label>
+                            <textarea
+                                name="message"
+                                rows="4"
+                                maxlength="500"
+                                class="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                placeholder="Type your message here..."
+                                required></textarea>
+                            <p class="mt-2 text-sm text-gray-500 flex justify-between">
+                                <span>Characters: <span id="charCount">0</span>/500</span>
+                                <span>Estimated recipients: {{active_contacts|add_commas}}</span>
+                            </p>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                                Send Message
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- Recent Messages Table -->
+        <div class="bg-white rounded-xl border border-gray-200">
+            <div class="p-4 sm:p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900">Recent Messages</h2>
+                </div>
+                <!-- Mobile view (card layout) -->
+                <div class="block lg:hidden">
+                    {% for message in messages %}
+                    <a href="{% url 'app_webapp:conversation_detail' message.contact.id %}" class="block mb-4 hover:no-underline">
+                        <div class="p-4 border rounded-lg hover:bg-gray-50 transition-colors duration-150">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                    {% if message.status == 'DELIVERED' %}bg-green-100 text-green-800
+                                    {% elif message.status == 'FAILED' %}bg-red-100 text-red-800
+                                    {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                    {{message.status_display}}
+                                </span>
+                                <span class="text-sm text-gray-500">{{message.created_at|timesince}} ago</span>
+                            </div>
+                            <div class="text-sm text-gray-500 mb-2">
+                                <div class="line-clamp-3">{{message.message}}</div>
+                            </div>
+                            <div class="text-sm text-gray-900">
+                                <div class="flex items-center">
+                                    <svg class="h-4 w-4 text-gray-400 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                                    </svg>
+                                    {{message.contact.phone_number}}
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+
+                <!-- Desktop view (table layout) -->
+                <div class="hidden lg:block overflow-x-auto">
+                    <table class="w-full table-fixed">
+                        <thead>
+                            <tr class="border-b border-gray-200">
+                                <th class="text-left text-sm font-medium text-gray-500 pb-4 w-2/5">Message</th>
+                                <th class="text-left text-sm font-medium text-gray-500 pb-4 w-1/5">Recipient</th>
+                                <th class="text-left text-sm font-medium text-gray-500 pb-4 w-1/5">Status</th>
+                                <th class="text-left text-sm font-medium text-gray-500 pb-4 w-1/5">TimeStamp</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for message in messages %}
+                            <tr class="hover:bg-gray-50 group cursor-pointer">
+                                <td colspan="4">
+                                    <a href="{% url 'app_webapp:conversation_detail' message.contact.id %}" class="block hover:no-underline">
+                                        <div class="flex w-full">
+                                            <div class="w-2/5 py-4 text-sm text-gray-500 pr-4">
+                                                <div class="line-clamp-2">{{message.message}}</div>
+                                            </div>
+                                            <div class="w-1/5 py-4 text-sm text-gray-900">
+                                                <div class="truncate">{{message.contact.phone_number}}</div>
+                                            </div>
+                                            <div class="w-1/5 py-4">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                                    {% if message.status == 'DELIVERED' %}bg-green-100 text-green-800
+                                                    {% elif message.status == 'FAILED' %}bg-red-100 text-red-800
+                                                    {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                                    {{message.status_display}}
+                                                </span>
+                                            </div>
+                                            <div class="w-1/5 py-4 text-sm text-gray-500">{{message.created_at|timesince}} ago</div>
+                                        </div>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if has_pagination %}
+                <!-- Pagination -->
+                <div class="p-4 border-t border-gray-200">
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="text-sm text-gray-500">
+                            Showing {{start_index}} to {{end_index}} of {{total_messages}} contacts
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            {% if messages.has_previous %}
+                            <a href="?page={{ messages.previous_page_number }}" class="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                                Previous
+                            </a>
+                            {% endif %}
+                            {% for num in messages.paginator.page_range %}
+                                {% if num == messages.number %}
+                                <span class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-sm">
+                                    {{ num }}
+                                </span>
+                                {% else %}
+                                    {% if num <= 3 or num >= messages.paginator.num_pages|add:-2 or num == messages.number|add:1 or num == messages.number|add:-1 %}
+                                        <a href="?page={{ num }}" 
+                                        class="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-5">
+                                            {{ num }}
+                                        </a>
+                                    {% elif num == 4 or num == messages.paginator.num_pages|add:-3 %}
+                                        <span class="px-2">...</span>
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                            {% if messages.has_next %}
+                            <a href="?page={{ messages.next_page_number }}" class="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                                Next
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock content %}
+{% block script %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Quick Message Form Handler
+        const quickMessageForm = document.getElementById('quickMessageForm');
+        const messageTextarea = quickMessageForm?.querySelector('textarea[name="message"]');
+        const charCountSpan = document.getElementById('charCount');
+    
+        // Character counter
+        if (messageTextarea && charCountSpan) {
+            messageTextarea.addEventListener('input', function() {
+                const count = this.value.length;
+                charCountSpan.textContent = count;
+                
+                // Optional: Add visual feedback when approaching limit
+                if (count > 150) {
+                    charCountSpan.classList.add('text-red-500');
+                } else {
+                    charCountSpan.classList.remove('text-red-500');
+                }
+            });
+        }
+    
+        if (quickMessageForm) {
+            quickMessageForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                try {
+                    const formData = new FormData(this);
+                    const response = await fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        }
+                    });
+    
+                    const data = await response.json();
+    
+                    if (response.ok) {
+                        // Show success message
+                        showSuccessMessage(data.message || 'Message sent successfully!');
+                        // Reset form
+                        this.reset();
+                        // Reset character counter
+                        if (charCountSpan) {
+                            charCountSpan.textContent = '0';
+                        }
+                        // Optionally reload page after a delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        // Error handling with more specific message
+                        alert(data.message || 'Error sending message');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error sending message');
+                }
+            });
+        }
+    });
+</script>
+{% endblock script %}

@@ -1,0 +1,9 @@
+.env
+frontend/
+logs/
+venv/
+__pycache__/
+views.py.old
+db.sqlite3
+*.zip
+staticfiles/

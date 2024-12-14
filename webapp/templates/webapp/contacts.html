@@ -1,0 +1,587 @@
+{% extends "webapp/base.html" %}
+{% load nav_tags %}
+{% load number_filters %}
+{% block title %}SMS Messaging - Contacts{% endblock title %}
+{% block content %}
+{% include 'webapp/fragments/overlay.html' %}
+{% main_navigation %}
+<!-- Main Content -->
+<main class="ml-0 md:ml-72 min-h-screen">
+    {% include 'webapp/fragments/message.html' %}
+    <div class="p-6 space-y-6">
+        <!-- Header with Actions -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Contacts</h1>
+                <p class="text-gray-500">Manage your contact list and groups</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button onclick="showModal('importModal')" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <i class="fas fa-file-import mr-2"></i>Import CSV
+                </button>
+                <button onclick="showModal('groupModal')" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <i class="fas fa-users mr-2"></i>Create Group
+                </button>
+                <button onclick="showModal('newContactModal')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+                    <i class="fas fa-plus mr-2"></i>Add Contact
+                </button>
+            </div>
+        </div>
+
+       <!-- Enhanced Filters and Search -->
+        <div class="flex flex-col md:flex-row gap-4 md:items-center">
+            <div class="flex-1">
+                <form method="GET" class="relative">
+                    <input
+                        type="text"
+                        name="search"
+                        placeholder="Search contacts by name, email, or phone..."
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        value="{{ request.GET.search|default:'' }}"
+                    >
+                    <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <button type="submit" class="hidden">Search</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Contact Stats -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Total Contacts</p>
+                        <h3 class="text-2xl font-bold text-gray-900 mt-1">{{total_contacts}}</h3>
+                    </div>
+                    <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-users text-indigo-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Active Groups</p>
+                        <h3 class="text-2xl font-bold text-gray-900 mt-1">{{total_active_groups}}</h3>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-layer-group text-green-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Message Sent</p>
+                        <h3 class="text-2xl font-bold text-gray-900 mt-1">{{total_messages_sent|format_number}}</h3>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-paper-plane text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm font-medium text-gray-500">Engagement Rate</p>
+                        <h3 class="text-2xl font-bold text-gray-900 mt-1">{{engagement_rate}}%</h3>
+                    </div>
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-chart-line text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Groups Section -->
+        <div class="bg-white rounded-xl border border-gray-200">
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Contact Groups</h3>
+            </div>
+            <div class="p-4">
+                <div class="flex flex-wrap gap-3">
+                    {% for group in groups %}
+                    <div class="flex items-center space-x-2 px-3 py-2 bg-gray-50 rounded-lg">
+                        <span class="text-sm font-medium text-gray-700">{{ group.name }}</span>
+                        <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                            {{ group.get_member_count }} members
+                        </span>
+                    </div>
+                    {% empty %}
+                    <p class="text-gray-500">No groups created yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <!-- Contacts Table -->
+        <div class="bg-white rounded-xl border border-gray-200">
+            <div class="overflow-x-auto">
+                {% if contacts %}
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="text-left p-4 text-sm font-medium text-gray-500">Name</th>
+                            <th class="text-left p-4 text-sm font-medium text-gray-500">Phone Number</th>
+                            <th class="text-left p-4 text-sm font-medium text-gray-500">Groups</th>
+                            <th class="text-left p-4 text-sm font-medium text-gray-500">Status</th>
+                            <th class="text-left p-4 text-sm font-medium text-gray-500">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for contact in contacts %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="p-4">
+                                    <div class="flex items-center">
+                                        <div>
+                                            <div class="font-medium text-gray-900">{{contact.full_name|default:"N/A"}}</div>
+                                            <div class="text-sm text-gray-500">ID: {{contact.id}}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-gray-500">{{contact.phone_number }}</td>
+                                <td class="p-4">
+                                    <div class="flex space-x-2">
+                                        {% for group in contact.groups.all %}
+                                        <span class="px-2 py-1 text-xs font-medium bg-indigo-100 rounded-full">{{group.name}}</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td class="p-4">
+                                    <span id="status-badge-{{contact.id}}" 
+                                          class="px-2 py-1 text-xs font-medium rounded-full 
+                                          {% if contact.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                        {{contact.status_display}}
+                                    </span>
+                                </td>
+                                <td class="p-4">
+                                    <button 
+                                        onclick="toggleContactStatus({{contact.id}}, {{contact.is_active|yesno:'true,false'}})"
+                                        class="px-3 py-1 text-sm font-medium rounded-lg border
+                                        {% if contact.is_active %}
+                                            border-red-300 text-red-600 hover:bg-red-50
+                                        {% else %}
+                                            border-green-300 text-green-600 hover:bg-green-50
+                                        {% endif %}">
+                                        {% if contact.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="p-4 text-center">
+                    <p class="text-gray-500">No contacts found.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if has_pagination %}
+            <!-- Pagination -->
+            <div class="p-4 border-t border-gray-200">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="text-sm text-gray-500">
+                        Showing {{start_index}} to {{end_index}} of {{total_contacts}} contacts
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        {% if contacts.has_previous %}
+                        <a href="?page={{ contacts.previous_page_number }}" class="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                            Previous
+                        </a>
+                        {% endif %}
+                        {% for num in contacts.paginator.page_range %}
+                            {% if num == contacts.number %}
+                            <span class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-sm">
+                                {{ num }}
+                            </span>
+                            {% else %}
+                                {% if num <= 3 or num >= contacts.paginator.num_pages|add:-2 or num == contacts.number|add:1 or num == contacts.number|add:-1 %}
+                                    <a href="?page={{ num }}" 
+                                    class="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-5">
+                                        {{ num }}
+                                    </a>
+                                {% elif num == 4 or num == contacts.paginator.num_pages|add:-3 %}
+                                    <span class="px-2">...</span>
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if contacts.has_next %}
+                        <a href="?page={{ contacts.next_page_number }}" class="px-3 py-1 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+                            Next
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</main>
+ <!-- Modals -->
+<!-- New Contact Modal -->
+<div id="newContactModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-xl max-w-md w-full mx-4">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-900">Add New Contact</h2>
+            </div>
+            <form id="createContactForm" method="POST" action="{% url 'app_webapp:contacts' %}">
+                {% csrf_token %}
+
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                        <input 
+                            type="text" 
+                            name="full_name" 
+                            required 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            placeholder="Enter full name">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                        <input 
+                            type="tel" 
+                            name="phone_number" 
+                            required 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            placeholder="+1234567890">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input 
+                            type="email" 
+                            name="email" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                            placeholder="email@example.com">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="groups">Groups</label>
+                        <select id="groups" 
+                                name="groups" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                multiple
+                                required>
+                            {% for group in groups %}
+                                <option value="{{ group.id }}">{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                    <button type="button" onclick="hideModal('newContactModal')" 
+                            class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Add Contact</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- Create Group Modal -->
+<div id="groupModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-xl max-w-md w-full mx-4">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-900">Create New Group</h2>
+            </div>
+            <form id="createGroupForm" method="POST" action="{% url 'app_webapp:contacts' %}">
+                {% csrf_token %}
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Group Name</label>
+                        <input type="text" name="name" required placeholder="Enter group name" 
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea name="description" rows="3" placeholder="Enter group description" 
+                                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-gray-200 flex flex-wrap gap-3 justify-end">
+                    <button type="button" onclick="hideModal('groupModal')" 
+                            class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                    <button type="submit" 
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Create Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<div class="flex flex-wrap gap-3">
+    <button onclick="showModal('importModal')" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+        <i class="fas fa-file-import mr-2"></i>Import CSV
+    </button>
+    <button onclick="showModal('groupModal')" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+        <i class="fas fa-users mr-2"></i>Create Group
+    </button>
+    <button onclick="showModal('newContactModal')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">
+        <i class="fas fa-plus mr-2"></i>Add Contact
+    </button>
+</div>
+
+<!-- Add CSV Import Modal after other modals -->
+<div id="importModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-auto">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Import Contacts</h2>
+                <button type="button" onclick="hideModal('importModal')" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="importForm" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="p-4 space-y-4">
+                    <!-- File Upload -->
+                    <div>
+                        <label for="csv_file" class="block text-sm font-medium text-gray-700 mb-1">Upload CSV File</label>
+                        <input
+                            type="file"
+                            id="csv_file"
+                            name="csv_file"
+                            accept=".csv"
+                            required
+                            class="block w-full text-sm text-gray-500 border border-gray-300 rounded-lg cursor-pointer bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+
+                    <!-- Group Selection -->
+                    <div>
+                        <label for="group_id" class="block text-sm font-medium text-gray-700 mb-1">Group (Optional)</label>
+                        <select
+                            id="group_id"
+                            name="group_id"
+                            class="block w-full text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            <option value="">Select a group</option>
+                            {% for group in groups %}
+                                <option value="{{ group.id }}">{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Format Info -->
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">Required CSV Format</h3>
+                        <div class="text-sm text-gray-600 space-y-1">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-medium">Required:</span>
+                                <span>phone_number</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-medium">Optional:</span>
+                                <span>full_name,email</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="flex justify-end items-center gap-3 p-4 border-t border-gray-200">
+                    <button 
+                        type="button"
+                        onclick="hideModal('importModal')"
+                        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button 
+                        type="submit"
+                        class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700">
+                        Import
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+{% block script %}
+<script>
+    // Mobile menu functionality
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // Form submission handler
+        const createGroupForm = document.getElementById('createGroupForm');
+        const createContactForm = document.getElementById('createContactForm');
+        const importForm = document.getElementById('importForm');
+        if (createGroupForm) {
+            createGroupForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                try {
+                    const formData = new FormData(this);
+                    const response = await fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // Show success message
+                        showSuccessMessage(data.message || 'Group created successfully!');
+                        // Reset form
+                        this.reset();
+                        // Hide modal
+                        hideModal('groupModal');
+                        // Reload page after a short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        // Error handling with more specific message
+                        alert(data.message || 'Error creating group');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error creating group');
+                }
+            });
+        }
+        if (createContactForm) {
+            createContactForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                try {
+                    const formData = new FormData(this);
+                    formData.append('action', 'create_new_contact');
+                    const response = await fetch(this.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // Show success message
+                        showSuccessMessage(data.message || 'Contact created successfully!');
+                        // Reset form
+                        this.reset();
+                        // Hide modal
+                        hideModal('newContactModal');
+                        // Reload page after a short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        // Error handling with more specific message
+                        alert(data.message || 'Error creating contact');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error creating contact');
+                }
+            });
+        }
+        if (importForm) {
+            importForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                try {
+                    const formData = new FormData(this);
+                    formData.append('action', 'import_contacts');
+                    
+                    const response = await fetch('{% url "app_webapp:contacts" %}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        showSuccessMessage(data.message || 'Contacts imported successfully!');
+                        this.reset();
+                        hideModal('importModal');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        alert(data.message || 'Error importing contacts');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error importing contacts');
+                }
+            });
+        }
+        // Close modals when clicking outside
+        const modals = document.querySelectorAll('[id$="Modal"]');
+        modals.forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    hideModal(modal.id);
+                }
+            });
+        });
+    });
+    async function toggleContactStatus(contactId, currentStatus) {
+        try {
+            const button = event.currentTarget;
+            const formData = new FormData();
+            formData.append('action', 'toggle_status');
+            formData.append('contact_id', contactId);
+            formData.append('is_active', currentStatus);
+    
+            const response = await fetch('{% url "app_webapp:contacts" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            });
+    
+            if (response.ok) {
+                const data = await response.json();
+                console.log(data);
+                if (data.success) {
+                    // Update the status badge
+                    const statusBadge = document.getElementById(`status-badge-${contactId}`);
+                    if (statusBadge) {
+                        statusBadge.className = `px-2 py-1 text-xs font-medium rounded-full ${
+                            data.contact.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`;
+                        statusBadge.textContent = data.contact.status_display;
+                    }
+    
+                    if (button) {
+                        if (data.contact.is_active) {
+                            button.textContent = 'Deactivate';
+                            button.className = 'px-3 py-1 text-sm font-medium rounded-lg border border-red-300 text-red-600 hover:bg-red-50';
+                            // Update onclick attribute with new status
+                            button.setAttribute('onclick', `toggleContactStatus(${contactId}, true)`);
+                            showSuccessMessage('Contact activated successfully');
+                        } else {
+                            button.textContent = 'Activate';
+                            button.className = 'px-3 py-1 text-sm font-medium rounded-lg border border-green-300 text-green-600 hover:bg-green-50';
+                            // Update onclick attribute with new status
+                            button.setAttribute('onclick', `toggleContactStatus(${contactId}, false)`);
+                            showSuccessMessage('Contact deactivated successfully');
+                        }
+                    }
+                } else {
+                    throw new Error(data.message || 'Failed to update contact status');
+                }
+            } else {
+                throw new Error('Failed to update contact status');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert(error.message || 'Error updating contact status');
+        }
+    }
+</script>
+{% endblock script %}
