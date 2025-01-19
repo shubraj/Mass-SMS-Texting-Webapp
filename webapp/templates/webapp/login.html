@@ -76,6 +76,19 @@
             </button>
         </form>
     </div>
+    <footer class="fixed bottom-0 left-0 w-full bg-gradient-to-r from-indigo-700 to-purple-800 text-white py-4">
+        <div class="container mx-auto text-center text-sm">
+            <p class="mb-2">
+                By signing in, you agree to our 
+                <a href="{% url 'app_webapp:terms_and_conditions' %}" class="underline hover:text-indigo-200 transition-colors">Terms & Conditions</a> 
+                and 
+                <a href="{% url 'app_webapp:privacy_policy' %}" class="underline hover:text-indigo-200 transition-colors">Privacy Policy</a>
+            </p>
+            <p class="text-indigo-200">
+                © {% now "Y" %} TrapHouseboyzSoftware. All rights reserved.
+            </p>
+        </div>
+    </footer>
 </div>
 {% endblock content %}
 {% block script %}
